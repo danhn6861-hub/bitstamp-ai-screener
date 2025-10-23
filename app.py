@@ -8,21 +8,37 @@ st.set_page_config(layout="wide", page_title="ONUS VNDC AI Screener")
 st.title("🇻🇳 ONUS VNDC AI Screener – Quét tín hiệu mạnh nhất (M15)")
 st.caption("Chỉ quét các cặp coin VNDC trên sàn ONUS. Không cần API key.")
 
+# ===== Tham số người dùng =====
 LONG_THRESHOLD = 6
 SHORT_THRESHOLD = 3
 INTERVAL_MIN = 15
-SCAN_LIMIT = st.sidebar.slider("Số lượng coin VNDC quét", 10, 200, 100)
-refresh = st.button("🔄 Cập nhật ngay")
+SCAN_LIMIT = st.sidebar.slider("🔎 Số lượng coin VNDC quét", 10, 300, 100)
+refresh_pairs = st.sidebar.button("🧩 Làm mới danh sách coin (VNDC)")
+refresh_signals = st.sidebar.button("🔁 Cập nhật tín hiệu mới nhất")
 
-@st.cache_data(ttl=300)
+# ===== Cache danh sách cặp =====
+@st.cache_data(ttl=600)
 def load_pairs(limit):
     return get_onus_pairs(limit)
 
-pairs = load_pairs(SCAN_LIMIT)
-st.write(f"Đã tìm thấy **{len(pairs)}** cặp VNDC trên ONUS.")
+if refresh_pairs or "pairs" not in st.session_state:
+    pairs = load_pairs(SCAN_LIMIT)
+    # Nếu API không có kết quả, dùng danh sách cặp VNDC cố định
+    if not pairs:
+        pairs = [
+            "BTCVNDC","ETHVNDC","BNBVNDC","SOLVNDC","DOGEVNDC",
+            "ADAVNDC","ETCVNDC","DOTVNDC","SHIBVNDC","AVAXVNDC",
+            "LINKVNDC","XRPVNDC","TRXVNDC","NEARVNDC","MATICVNDC"
+        ]
+        st.warning("Không lấy được danh sách từ API, đang dùng danh sách VNDC mặc định.")
+    st.session_state["pairs"] = pairs
 
-if refresh or "results" not in st.session_state:
-    st.info("🔍 Đang quét dữ liệu ONUS... (mất khoảng 1–2 phút)")
+pairs = st.session_state["pairs"]
+st.success(f"✅ Đang theo dõi {len(pairs)} cặp VNDC từ ONUS.")
+
+# ===== Quét dữ liệu =====
+if refresh_signals or "results" not in st.session_state:
+    st.info("🧠 Đang quét dữ liệu ONUS... (khoảng 1–2 phút)")
     results = []
     progress = st.progress(0)
     for i, p in enumerate(pairs):
@@ -45,7 +61,7 @@ if refresh or "results" not in st.session_state:
                 signal = "SHORT 🔻"
             results.append({
                 "Coin": p,
-                "Giá (VNDC)": round(last["close"], 4),
+                "Giá (VNDC)": round(last["close"], 2),
                 "RSI": round(last["rsi"], 1),
                 "ADX": round(last["adx"], 1),
                 "Vol Surge": round(last["volsurge"], 2),
@@ -61,15 +77,16 @@ if refresh or "results" not in st.session_state:
 else:
     df_result = st.session_state["results"]
 
+# ===== Hiển thị kết quả =====
 if not df_result.empty:
     longs = df_result[df_result["Tín hiệu"].str.contains("LONG")].sort_values("Score", ascending=False).head(10)
     shorts = df_result[df_result["Tín hiệu"].str.contains("SHORT")].sort_values("Score", ascending=True).head(10)
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("🔥 Top 10 Coin Tăng Mạnh (LONG)")
+        st.subheader("🔥 Top 10 Coin Tăng Mạnh (VNDC)")
         st.dataframe(longs, use_container_width=True)
     with col2:
-        st.subheader("💀 Top 10 Coin Giảm Mạnh (SHORT)")
+        st.subheader("💀 Top 10 Coin Giảm Mạnh (VNDC)")
         st.dataframe(shorts, use_container_width=True)
 else:
-    st.warning("Không có dữ liệu hợp lệ. Hãy ấn 'Cập nhật ngay' để quét lại.")
+    st.warning("⚠️ Không có dữ liệu hợp lệ. Hãy ấn '🔁 Cập nhật tín hiệu mới nhất'.")
