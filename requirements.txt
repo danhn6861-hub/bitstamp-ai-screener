@@ -2,3 +2,7 @@ streamlit
 pandas
 requests
 ta
+python-dateutil
+pytz
+numpy
+tabulate
